@@ -154,10 +154,7 @@ module.exports.hackWrapLoaders = (loaderPaths, callback) => {
 const toCamelCase = (s) => s.replace(/(\-\w)/g, (m) => m[1].toUpperCase());
 module.exports.tap = (obj, hookName, func) => {
   if (obj.hooks) {
-    return obj.hooks[toCamelCase(hookName)].tap(
-      "speed-measure-extended-webpack-plugin",
-      func
-    );
+    return obj.hooks[toCamelCase(hookName)].tap("smp", func);
   }
   return obj.plugin(hookName, func);
 };
