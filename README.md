@@ -1,15 +1,9 @@
 <div align="center">
-  <img width="120" height="120" src="https://rawgit.com/stephencookdev/speed-measure-webpack-plugin/master/logo.svg" />
+  <img width="120" height="120" src="https://rawgit.com/nguyenngoclongdev/speed-measure-extended-webpack-plugin/master/logo.svg" />
   <h1>
-    Speed Measure Plugin
+    Speed Measure Extended Plugin
     <div><sup><em>(for webpack)</em></sup></div>
   </h1>
-
-<!-- ALL-CONTRIBUTORS-BADGE:START -->
-
-<a href="https://travis-ci.org/stephencookdev/speed-measure-webpack-plugin"><img src="https://travis-ci.org/stephencookdev/speed-measure-webpack-plugin.svg?branch=master" /></a> <a href="https://npmjs.com/package/speed-measure-webpack-plugin"><img src="https://img.shields.io/npm/dw/speed-measure-webpack-plugin.svg" /></a> <a href="https://npmjs.com/package/speed-measure-webpack-plugin"><img src="https://img.shields.io/node/v/speed-measure-webpack-plugin.svg" /></a> <a href="https://github.com/prettier/prettier"><img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg" /></a> <a href="#contributors"><img src="https://img.shields.io/badge/all_contributors-10-orange.svg" /></a>
-
-<!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 </div>
 <br>
@@ -18,23 +12,36 @@ The first step to optimising your webpack build speed, is to know where to focus
 
 This plugin measures your webpack build speed, giving an output like this:
 
-![Preview of Speed Measure Plugin's output](preview.png)
+![Preview of Speed Measure Extended Plugin's output](preview.png)
+
+## ✨ What's New in This Fork
+
+- ✅ **Supports Webpack v5** — based on and inspired by the fork [speed-measure-webpack-v5-plugin](https://github.com/rising-entropy/speed-measure-webpack-v5-plugin)
+- ✅ **Dual output**: print build info to both **console** and/or **file**
+- ✅ **Toggle color output** — enabled when printing to console, disabled when writing to file
+- ✅ **Exclude plugins** from being wrapped to avoid build issues — implementation references the fork [speed-measure-webpack-v5-plugin](https://github.com/rising-entropy/speed-measure-webpack-v5-plugin)
+
+---
 
 ## Install
 
 ```bash
-npm install --save-dev speed-measure-webpack-plugin
+npm install --save-dev speed-measure-extended-webpack-plugin
 ```
 
 or
 
 ```bash
-yarn add -D speed-measure-webpack-plugin
+yarn add -D speed-measure-extended-webpack-plugin
+```
+
+```bash
+pnpm install -D speed-measure-extended-webpack-plugin
 ```
 
 ## Requirements
 
-SMP requires at least **Node v6**. But otherwise, accepts **all webpack** versions (1, 2, 3, and 4).
+SMP requires at least **Node v6**. But otherwise, accepts **all webpack** versions (1, 2, 3, 4 and 5).
 
 ## Usage
 
@@ -49,9 +56,17 @@ const webpackConfig = {
 to
 
 ```javascript
-const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
+const SpeedMeasurePlugin = require("speed-measure-extended-webpack-plugin");
 
-const smp = new SpeedMeasurePlugin();
+const smp = new SpeedMeasurePlugin({
+  outputFormat: "humanVerbose",
+  outputConsole: true,
+  outputTarget: "./buildInfo.txt",
+  compareLoadersBuild: {
+    outputConsole: false,
+    filePath: "./buildCompare.json",
+  },
+});
 
 const webpackConfig = smp.wrap({
   plugins: [new MyPlugin(), new MyOtherPlugin()],
@@ -59,6 +74,22 @@ const webpackConfig = smp.wrap({
 ```
 
 and you're done! SMP will now be printing timing output to the console by default.
+
+But if you choose to integrate it within your script all the time, you may face the following:
+
+- The build fails at the end (in case of prod)
+- Some plugin features such as HMR in react don't work.
+
+To resolve this, you would have to exclude these plugins from the meassure (<a>Learn more about why it happens</a>):
+Just you can do by passing an optional array parameter of the name of the plugin class to exclude.
+
+For example, to exlcude, ReactRefreshPlugin and MiniCSSExtractPlugin send the list as:
+
+```javascript
+smp.wrap(config, ["ReactRefreshPlugin", "MiniCSSExtractPlugin"]);
+```
+
+And voila! You are now free to use this in production.
 
 Check out the [examples folder](/examples) for some more examples.
 
@@ -98,6 +129,13 @@ Default: `console.log`
 
 - If a string, it specifies the path to a file to output to.
 - If a function, it will call the function with the output as the first parameter
+
+### `options.outputConsole`
+
+Type: `Boolean`<br>
+Default: `false`
+
+Flag to control whether the speed measure results are printed to the console.
 
 ### `options.pluginNames`
 
@@ -143,11 +181,13 @@ Default: `{}`
 This option gives you a comparison over time of the module count and time spent, per loader. This option provides more data when `outputFormat: "humanVerbose"`.
 
 Given a required `filePath` to store the build information, this option allows you to compare differences to your codebase over time. E.g.
+✨ You can also use the optional `outputConsole` flag to control whether the comparison results are printed to the console.
 
 ```javascript
 const smp = new SpeedMeasurePlugin({
   compareLoadersBuild: {
     filePath: "./buildInfo.json",
+    outputConsole: false,
   },
 });
 ```
@@ -166,6 +206,17 @@ This flag is _experimental_. Some loaders will have inaccurate results:
 
 We will find solutions to these issues before removing the _(experimental)_ flag on this option.
 
+## What Happens under the Hood?
+
+Loader times are simple to measure, we can directly consume the callback and measure the before and after time.
+For Plugins, it's a bit tricky. We have to wrap each Plugin into a Proxy Plugin which has the functions to get the before and after times. Which is why, we `wrap` the configuration.
+
+A problem that the users faced in the original `speed-measure-webpack-plugin`, is that plugins such as `MiniCSSExtractPlugin` throw an exception when they are invoked not by the original class, but a proxy - this results in build failure. (Issues like <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues/172" target="_blank">these</a> for example)
+
+To resolve this, we would have to exclude these plugins from being wrapped. And since the support for the original package has seemingly ended since the last 2 years, it inspired me to make this new package with the feature to exlude such Plugins.
+
+If you're still curious on getting the timings of all the plugins, you can choose to not pass the array and let the build fail to get the complete timings.
+
 ## FAQ
 
 ### What does general output time mean?
@@ -182,41 +233,6 @@ Contributors are welcome! 😊
 
 Please check out the [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-## Migrating
-
-SMP follows [semver](https://semver.org/). If upgrading a major version, you can consult [the migration guide](./migration.md).
-
 ## License
 
 [MIT](/LICENSE)
-
-## Contributors ✨
-
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tr>
-    <td align="center"><a href="https://stephencookdev.co.uk/"><img src="https://avatars.githubusercontent.com/u/8496655?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Stephen Cook</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=stephencookdev" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=stephencookdev" title="Documentation">📖</a> <a href="#blog-stephencookdev" title="Blogposts">📝</a> <a href="#design-stephencookdev" title="Design">🎨</a> <a href="#question-stephencookdev" title="Answering Questions">💬</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/pulls?q=is%3Apr+reviewed-by%3Astephencookdev" title="Reviewed Pull Requests">👀</a></td>
-    <td align="center"><a href="https://scarletsky.github.io/"><img src="https://avatars.githubusercontent.com/u/2386165?v=4?s=100" width="100px;" alt=""/><br /><sub><b>scarletsky</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=scarletsky" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/wayou"><img src="https://avatars.githubusercontent.com/u/3783096?v=4?s=100" width="100px;" alt=""/><br /><sub><b>牛さん</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=wayou" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues?q=author%3Awayou" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://github.com/ThomasHarper"><img src="https://avatars.githubusercontent.com/u/3199791?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Thomas Bentkowski</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=ThomasHarper" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/alan-agius4"><img src="https://avatars.githubusercontent.com/u/17563226?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Alan Agius</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=alan-agius4" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues?q=author%3Aalan-agius4" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://daix.me/"><img src="https://avatars.githubusercontent.com/u/1396511?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Ximing</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=NdYAG" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues?q=author%3ANdYAG" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://twitter.com/lihautan"><img src="https://avatars.githubusercontent.com/u/2338632?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tan Li Hau</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=tanhauhau" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues?q=author%3Atanhauhau" title="Bug reports">🐛</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=tanhauhau" title="Tests">⚠️</a></td>
-  </tr>
-  <tr>
-    <td align="center"><a href="https://github.com/ZauberNerd"><img src="https://avatars.githubusercontent.com/u/249542?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Björn Brauer</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=ZauberNerd" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues?q=author%3AZauberNerd" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://github.com/The-Only-Matrix"><img src="https://avatars.githubusercontent.com/u/61681157?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Suraj Patel</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=The-Only-Matrix" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/hanzooo"><img src="https://avatars.githubusercontent.com/u/16368939?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jm</b></sub></a><br /><a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=hanzooo" title="Code">💻</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/issues?q=author%3Ahanzooo" title="Bug reports">🐛</a> <a href="https://github.com/stephencookdev/speed-measure-webpack-plugin/commits?author=hanzooo" title="Tests">⚠️</a></td>
-  </tr>
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!

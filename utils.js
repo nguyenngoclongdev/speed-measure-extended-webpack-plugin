@@ -58,7 +58,7 @@ module.exports.getLoaderNames = (loaders) =>
               (_, m) => m
             )
         )
-        .filter((l) => !l.includes("speed-measure-webpack-plugin"))
+        .filter((l) => !l.includes("speed-measure-extended-webpack-plugin"))
     : ["modules with no loaders"];
 
 module.exports.groupBy = (key, arr) => {
@@ -108,7 +108,7 @@ const prependLoader = (rules) => {
 
   if (rules.use) {
     if (!Array.isArray(rules.use)) rules.use = [rules.use];
-    rules.use.unshift("speed-measure-webpack-plugin/loader");
+    rules.use.unshift("speed-measure-extended-webpack-plugin/loader");
   }
 
   if (rules.oneOf) {
@@ -154,7 +154,10 @@ module.exports.hackWrapLoaders = (loaderPaths, callback) => {
 const toCamelCase = (s) => s.replace(/(\-\w)/g, (m) => m[1].toUpperCase());
 module.exports.tap = (obj, hookName, func) => {
   if (obj.hooks) {
-    return obj.hooks[toCamelCase(hookName)].tap("smp", func);
+    return obj.hooks[toCamelCase(hookName)].tap(
+      "speed-measure-extended-webpack-plugin",
+      func
+    );
   }
   return obj.plugin(hookName, func);
 };

@@ -1,62 +1,57 @@
 let idInc = 0;
 
-const genWrappedFunc = ({
-  func,
-  smp,
-  context,
-  timeEventName,
-  pluginName,
-  endType,
-}) => (...args) => {
-  const id = idInc++;
-  // we don't know if there's going to be a callback applied to a particular
-  // call, so we just set it multiple times, letting each one override the last
-  const addEndEvent = () =>
-    smp.addTimeEvent("plugins", timeEventName, "end", {
+const genWrappedFunc =
+  ({ func, smp, context, timeEventName, pluginName, endType }) =>
+  (...args) => {
+    const id = idInc++;
+    // we don't know if there's going to be a callback applied to a particular
+    // call, so we just set it multiple times, letting each one override the last
+    const addEndEvent = () =>
+      smp.addTimeEvent("plugins", timeEventName, "end", {
+        id,
+        // we need to allow failure, since webpack can finish compilation and
+        // cause our callbacks to fall on deaf ears
+        allowFailure: true,
+      });
+
+    smp.addTimeEvent("plugins", timeEventName, "start", {
       id,
-      // we need to allow failure, since webpack can finish compilation and
-      // cause our callbacks to fall on deaf ears
-      allowFailure: true,
+      name: pluginName,
     });
-
-  smp.addTimeEvent("plugins", timeEventName, "start", {
-    id,
-    name: pluginName,
-  });
-  // invoke an end event immediately in case the callback here causes webpack
-  // to complete compilation. If this gets invoked and not the subsequent
-  // call, then our data will be inaccurate, sadly
-  addEndEvent();
-  const normalArgMap = a => wrap(a, pluginName, smp);
-  let ret;
-  if (endType === "wrapDone")
-    ret = func.apply(
-      context,
-      args.map(a => wrap(a, pluginName, smp, addEndEvent))
-    );
-  else if (endType === "async") {
-    const argsButLast = args.slice(0, args.length - 1);
-    const callback = args[args.length - 1];
-    ret = func.apply(
-      context,
-      argsButLast.map(normalArgMap).concat((...callbackArgs) => {
+    // invoke an end event immediately in case the callback here causes webpack
+    // to complete compilation. If this gets invoked and not the subsequent
+    // call, then our data will be inaccurate, sadly
+    addEndEvent();
+    const normalArgMap = (a) => wrap(a, pluginName, smp);
+    let ret;
+    if (endType === "wrapDone")
+      ret = func.apply(
+        context,
+        args.map((a) => wrap(a, pluginName, smp, addEndEvent))
+      );
+    else if (endType === "async") {
+      const argsButLast = args.slice(0, args.length - 1);
+      const callback = args[args.length - 1];
+      ret = func.apply(
+        context,
+        argsButLast.map(normalArgMap).concat((...callbackArgs) => {
+          addEndEvent();
+          callback(...callbackArgs);
+        })
+      );
+    } else if (endType === "promise")
+      ret = func.apply(context, args.map(normalArgMap)).then((promiseArg) => {
         addEndEvent();
-        callback(...callbackArgs);
-      })
-    );
-  } else if (endType === "promise")
-    ret = func.apply(context, args.map(normalArgMap)).then(promiseArg => {
-      addEndEvent();
-      return promiseArg;
-    });
-  else ret = func.apply(context, args.map(normalArgMap));
-  addEndEvent();
+        return promiseArg;
+      });
+    else ret = func.apply(context, args.map(normalArgMap));
+    addEndEvent();
 
-  return ret;
-};
+    return ret;
+  };
 
 const genPluginMethod = (orig, pluginName, smp, type) =>
-  function(method, func) {
+  function (method, func) {
     const timeEventName = pluginName + "/" + type + "/" + method;
     const wrappedFunc = genWrappedFunc({
       func,
@@ -70,7 +65,7 @@ const genPluginMethod = (orig, pluginName, smp, type) =>
   };
 
 const wrapTap = (tap, pluginName, smp, type, method) =>
-  function(id, func) {
+  function (id, func) {
     const timeEventName = pluginName + "/" + type + "/" + method;
     const wrappedFunc = genWrappedFunc({
       func,
@@ -83,7 +78,7 @@ const wrapTap = (tap, pluginName, smp, type, method) =>
   };
 
 const wrapTapAsync = (tapAsync, pluginName, smp, type, method) =>
-  function(id, func) {
+  function (id, func) {
     const timeEventName = pluginName + "/" + type + "/" + method;
     const wrappedFunc = genWrappedFunc({
       func,
@@ -97,7 +92,7 @@ const wrapTapAsync = (tapAsync, pluginName, smp, type, method) =>
   };
 
 const wrapTapPromise = (tapPromise, pluginName, smp, type, method) =>
-  function(id, func) {
+  function (id, func) {
     const timeEventName = pluginName + "/" + type + "/" + method;
     const wrappedFunc = genWrappedFunc({
       func,
@@ -115,12 +110,12 @@ const wrapHooks = (orig, pluginName, smp, type) => {
   const hooks = orig.hooks;
   if (!hooks) return hooks;
   const prevWrapped = wrappedHooks.find(
-    w =>
+    (w) =>
       w.pluginName === pluginName && (w.orig === hooks || w.wrapped === hooks)
   );
   if (prevWrapped) return prevWrapped.wrapped;
 
-  const genProxy = method => {
+  const genProxy = (method) => {
     const proxy = new Proxy(hooks[method], {
       get: (target, property) => {
         const raw = Reflect.get(target, property);
@@ -149,7 +144,9 @@ const wrapHooks = (orig, pluginName, smp, type) => {
   };
 
   const wrapped = Object.keys(hooks).reduce((acc, method) => {
-    acc[method] = genProxy(method);
+    if (method != "normalModuleLoader") {
+      acc[method] = genProxy(method);
+    }
     return acc;
   }, {});
 
@@ -170,7 +167,8 @@ const construcNamesToWrap = [
 const wrappedObjs = [];
 const findWrappedObj = (orig, pluginName) => {
   const prevWrapped = wrappedObjs.find(
-    w => w.pluginName === pluginName && (w.orig === orig || w.wrapped === orig)
+    (w) =>
+      w.pluginName === pluginName && (w.orig === orig || w.wrapped === orig)
   );
   if (prevWrapped) return prevWrapped.wrapped;
 };
@@ -179,15 +177,15 @@ const wrap = (orig, pluginName, smp, addEndEvent) => {
   const prevWrapped = findWrappedObj(orig, pluginName);
   if (prevWrapped) return prevWrapped;
 
-  const getOrigConstrucName = target =>
+  const getOrigConstrucName = (target) =>
     target && target.constructor && target.constructor.name;
-  const getShouldWrap = target => {
+  const getShouldWrap = (target) => {
     const origConstrucName = getOrigConstrucName(target);
     return construcNamesToWrap.includes(origConstrucName);
   };
   const shouldWrap = getShouldWrap(orig);
   const shouldSoftWrap = Object.keys(orig)
-    .map(k => orig[k])
+    .map((k) => orig[k])
     .some(getShouldWrap);
 
   let wrappedReturn;
@@ -196,7 +194,7 @@ const wrap = (orig, pluginName, smp, addEndEvent) => {
     const vanillaFunc = orig.name === "next";
     wrappedReturn =
       vanillaFunc && addEndEvent
-        ? function() {
+        ? function () {
             // do this before calling the callback, since the callback can start
             // the next plugin step
             addEndEvent();

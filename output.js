@@ -1,9 +1,8 @@
+const c = require("ansi-colors");
+const { groupBy, getAverages, getTotalActiveTime } = require("./utils");
+
 const MS_IN_MINUTE = 60000;
 const MS_IN_SECOND = 1000;
-
-const chalk = require("chalk");
-const { fg, bg } = require("./colours");
-const { groupBy, getAverages, getTotalActiveTime } = require("./utils");
 
 const humanTime = (ms, options = {}) => {
   if (options.verbose) {
@@ -34,7 +33,9 @@ const humanTime = (ms, options = {}) => {
 const smpTag = () => bg(" SMP ") + " ⏱  ";
 module.exports.smpTag = smpTag;
 
-module.exports.getHumanOutput = (outputObj, options = {}) => {
+module.exports.getHumanOutput = (outputObj, options = {}, color = false) => {
+  c.enabled = color;
+
   const hT = (x) => humanTime(x, options);
   let output = "\n\n" + smpTag() + "\n";
 
@@ -52,7 +53,7 @@ module.exports.getHumanOutput = (outputObj, options = {}) => {
       )
       .forEach((pluginName) => {
         output +=
-          chalk.bold(pluginName) +
+          c.bold(pluginName) +
           " took " +
           fg(hT(outputObj.plugins[pluginName]), outputObj.plugins[pluginName]);
         output += "\n";

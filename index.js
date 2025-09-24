@@ -1,6 +1,6 @@
 const path = require("path");
 const fs = require("fs");
-const chalk = require("chalk");
+const Compilation = require("webpack/lib/Compilation");
 const { WrappedPlugin, clear } = require("./WrappedPlugin");
 const {
   getModuleName,
@@ -30,18 +30,22 @@ module.exports = class SpeedMeasurePlugin {
     this.addTimeEvent = this.addTimeEvent.bind(this);
     this.apply = this.apply.bind(this);
     this.provideLoaderTiming = this.provideLoaderTiming.bind(this);
-    this.generateLoadersBuildComparison = this.generateLoadersBuildComparison.bind(
-      this
-    );
+    this.generateLoadersBuildComparison =
+      this.generateLoadersBuildComparison.bind(this);
   }
 
-  wrap(config) {
+  wrap(config, pluginsToExclude = []) {
     if (this.options.disable) return config;
     if (Array.isArray(config)) return config.map(this.wrap);
     if (typeof config === "function")
       return (...args) => this.wrap(config(...args));
 
+    pluginsToExclude = pluginsToExclude.map((p) => p.toLowerCase());
     config.plugins = (config.plugins || []).map((plugin) => {
+      if (pluginsToExclude.includes(plugin.constructor.name.toLowerCase())) {
+        return plugin;
+      }
+
       const pluginName =
         Object.keys(this.options.pluginNames || {}).find(
           (pluginName) => plugin === this.options.pluginNames[pluginName]
@@ -74,6 +78,7 @@ module.exports = class SpeedMeasurePlugin {
   generateLoadersBuildComparison() {
     const objBuildData = { loaderInfo: [] };
     const loaderFile = this.options.compareLoadersBuild.filePath;
+    const outputConsole = this.options.compareLoadersBuild.outputConsole;
     const outputObj = getLoadersOutput(this.timeEventData.loaders);
 
     if (!loaderFile) {
@@ -138,28 +143,30 @@ module.exports = class SpeedMeasurePlugin {
 
     fs.writeFileSync(loaderFile, JSON.stringify(buildDetails));
 
-    for (let i = 0; i < buildDetails.length; i++) {
-      const outputTable = [];
-      console.log("--------------------------------------------");
-      console.log("Build No ", buildDetails[i]["buildNo"]);
-      console.log("--------------------------------------------");
+    if (outputConsole) {
+      for (let i = 0; i < buildDetails.length; i++) {
+        const outputTable = [];
+        console.log("--------------------------------------------");
+        console.log("Build No ", buildDetails[i]["buildNo"]);
+        console.log("--------------------------------------------");
 
-      if (buildDetails[i]["loaderInfo"]) {
-        buildDetails[i]["loaderInfo"].forEach((buildInfo) => {
-          const objCurrentBuild = {};
-          objCurrentBuild["Name"] = buildInfo["Name"] || "";
-          objCurrentBuild["Time (ms)"] = buildInfo["Time"] || "";
-          if (this.options.outputFormat === "humanVerbose")
-            objCurrentBuild["Count"] = buildInfo["Count"] || 0;
-          objCurrentBuild["Comparison"] = buildInfo["Comparison"] || "";
-          outputTable.push(objCurrentBuild);
-        });
+        if (buildDetails[i]["loaderInfo"]) {
+          buildDetails[i]["loaderInfo"].forEach((buildInfo) => {
+            const objCurrentBuild = {};
+            objCurrentBuild["Name"] = buildInfo["Name"] || "";
+            objCurrentBuild["Time (ms)"] = buildInfo["Time"] || "";
+            if (this.options.outputFormat === "humanVerbose")
+              objCurrentBuild["Count"] = buildInfo["Count"] || 0;
+            objCurrentBuild["Comparison"] = buildInfo["Comparison"] || "";
+            outputTable.push(objCurrentBuild);
+          });
+        }
+        console.table(outputTable);
       }
-      console.table(outputTable);
     }
   }
 
-  getOutput() {
+  getOutput(color) {
     const outputObj = {};
     if (this.timeEventData.misc)
       outputObj.misc = getMiscOutput(this.timeEventData.misc);
@@ -177,7 +184,8 @@ module.exports = class SpeedMeasurePlugin {
       Object.assign(
         { verbose: this.options.outputFormat === "humanVerbose" },
         this.options
-      )
+      ),
+      color
     );
   }
 
@@ -230,10 +238,8 @@ module.exports = class SpeedMeasurePlugin {
       this.addTimeEvent("misc", "compile", "end", { fillLast: true });
 
       const outputToFile = typeof this.options.outputTarget === "string";
-      chalk.enabled = !outputToFile;
-      const output = this.getOutput();
-      chalk.enabled = true;
       if (outputToFile) {
+        const output = this.getOutput(false);
         const writeMethod = fs.existsSync(this.options.outputTarget)
           ? fs.appendFileSync
           : fs.writeFileSync;
@@ -241,8 +247,11 @@ module.exports = class SpeedMeasurePlugin {
         console.log(
           smpTag() + "Outputted timing info to " + this.options.outputTarget
         );
-      } else {
-        const outputFunc = this.options.outputTarget || console.log;
+      }
+
+      if (this.options.outputConsole) {
+        const output = this.getOutput(true);
+        const outputFunc = console.log;
         outputFunc(output);
       }
 
@@ -253,7 +262,11 @@ module.exports = class SpeedMeasurePlugin {
     });
 
     tap(compiler, "compilation", (compilation) => {
-      tap(compilation, "normal-module-loader", (loaderContext) => {
+      const normalModuleLoader =
+        require("webpack/lib/NormalModule").getCompilationHooks(
+          new Compilation(compilation)
+        ).loader;
+      normalModuleLoader.tap("new-normal-module-loader", (loaderContext) => {
         loaderContext[NS] = this.provideLoaderTiming;
       });
 

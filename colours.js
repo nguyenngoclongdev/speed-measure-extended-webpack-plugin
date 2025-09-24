@@ -1,7 +1,7 @@
-const chalk = require("chalk");
+const c = require("ansi-colors");
 
 module.exports.fg = (text, time) => {
-  let textModifier = chalk.bold;
+  let textModifier = c.bold;
   if (time > 10000) textModifier = textModifier.red;
   else if (time > 2000) textModifier = textModifier.yellow;
   else textModifier = textModifier.green;
@@ -9,4 +9,4 @@ module.exports.fg = (text, time) => {
   return textModifier(text);
 };
 
-module.exports.bg = (text) => chalk.bgBlack.green.bold(text);
+module.exports.bg = (text) => c.bgBlack.green.bold(text);
