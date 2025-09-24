@@ -144,9 +144,9 @@ const wrapHooks = (orig, pluginName, smp, type) => {
   };
 
   const wrapped = Object.keys(hooks).reduce((acc, method) => {
-    if (method != "normalModuleLoader") {
+    if (method != "normalModuleLoader")
+      //removed in webpack v5
       acc[method] = genProxy(method);
-    }
     return acc;
   }, {});
 

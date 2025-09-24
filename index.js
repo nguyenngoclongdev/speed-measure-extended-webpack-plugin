@@ -40,7 +40,10 @@ module.exports = class SpeedMeasurePlugin {
     if (typeof config === "function")
       return (...args) => this.wrap(config(...args));
 
-    pluginsToExclude = pluginsToExclude.map((p) => p.toLowerCase());
+    pluginsToExclude = pluginsToExclude.map((pluginName) =>
+      pluginName.toLowerCase()
+    );
+
     config.plugins = (config.plugins || []).map((plugin) => {
       if (pluginsToExclude.includes(plugin.constructor.name.toLowerCase())) {
         return plugin;
