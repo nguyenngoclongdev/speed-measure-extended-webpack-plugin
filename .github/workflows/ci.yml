@@ -28,7 +28,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependency
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Publish to NPM Package
         run: pnpm publish --no-git-checks
