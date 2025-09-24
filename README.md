@@ -130,7 +130,7 @@ Default: `console.log`
 - If a string, it specifies the path to a file to output to.
 - If a function, it will call the function with the output as the first parameter
 
-### `options.outputConsole`
+### ✨ `options.outputConsole`
 
 Type: `Boolean`<br>
 Default: `false`
@@ -181,6 +181,7 @@ Default: `{}`
 This option gives you a comparison over time of the module count and time spent, per loader. This option provides more data when `outputFormat: "humanVerbose"`.
 
 Given a required `filePath` to store the build information, this option allows you to compare differences to your codebase over time. E.g.
+
 ✨ You can also use the optional `outputConsole` flag to control whether the comparison results are printed to the console.
 
 ```javascript
