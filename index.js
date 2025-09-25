@@ -27,6 +27,7 @@ module.exports = class SpeedMeasurePlugin {
 
     this.wrap = this.wrap.bind(this);
     this.getOutput = this.getOutput.bind(this);
+    this.getRawOutput = this.getRawOutput.bind(this);
     this.addTimeEvent = this.addTimeEvent.bind(this);
     this.apply = this.apply.bind(this);
     this.provideLoaderTiming = this.provideLoaderTiming.bind(this);
@@ -169,7 +170,7 @@ module.exports = class SpeedMeasurePlugin {
     }
   }
 
-  getOutput(color) {
+  getRawOutput() {
     const outputObj = {};
     if (this.timeEventData.misc)
       outputObj.misc = getMiscOutput(this.timeEventData.misc);
@@ -177,7 +178,10 @@ module.exports = class SpeedMeasurePlugin {
       outputObj.plugins = getPluginsOutput(this.timeEventData.plugins);
     if (this.timeEventData.loaders)
       outputObj.loaders = getLoadersOutput(this.timeEventData.loaders);
+    return outputObj;
+  }
 
+  getOutput(outputObj, color) {
     if (this.options.outputFormat === "json")
       return JSON.stringify(outputObj, null, 2);
     if (typeof this.options.outputFormat === "function")
@@ -240,9 +244,17 @@ module.exports = class SpeedMeasurePlugin {
       clear();
       this.addTimeEvent("misc", "compile", "end", { fillLast: true });
 
+      const outputConsole = this.options.outputConsole;
       const outputToFile = typeof this.options.outputTarget === "string";
+      const compareLoadersBuild = this.options.compareLoadersBuild;
+
+      let rawOutput = {};
+      if (outputToFile || outputConsole) {
+        rawOutput = this.getRawOutput();
+      }
+
       if (outputToFile) {
-        const output = this.getOutput(false);
+        const output = this.getOutput(rawOutput, false);
         const writeMethod = fs.existsSync(this.options.outputTarget)
           ? fs.appendFileSync
           : fs.writeFileSync;
@@ -252,14 +264,13 @@ module.exports = class SpeedMeasurePlugin {
         );
       }
 
-      if (this.options.outputConsole) {
-        const output = this.getOutput(true);
+      if (outputConsole) {
+        const output = this.getOutput(rawOutput, true);
         const outputFunc = console.log;
         outputFunc(output);
       }
 
-      if (this.options.compareLoadersBuild)
-        this.generateLoadersBuildComparison();
+      if (compareLoadersBuild) this.generateLoadersBuildComparison();
 
       this.timeEventData = {};
     });
