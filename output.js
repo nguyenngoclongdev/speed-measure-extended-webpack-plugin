@@ -1,4 +1,5 @@
 const c = require("ansi-colors");
+const { fg, bg } = require("./colours");
 const { groupBy, getAverages, getTotalActiveTime } = require("./utils");
 
 const MS_IN_MINUTE = 60000;
