@@ -1,3 +1,14 @@
-examples/
+.github
+__tests__
+examples
+.gitignore
+.nvmrc
 .prettierrc
-__tests__/
+.travis.yml
+CONTRIBUTING.md
+jest.config.js
+lerna.json
+migration.md
+package-lock.json
+pnpm-lock.yaml
+*.test.js
